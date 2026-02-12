@@ -1,0 +1,43 @@
+# C/C++ compiled files
+*.exe
+*.o
+*.obj
+*.out
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Build directories
+build/
+dist/
+bin/
+obj/
+
+# IDE files
+.vscode/
+.vs/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.log
+*.bak
+*.old
+
+# Data files (optional - remove if you want to track contacts.json)
+# contacts.json
