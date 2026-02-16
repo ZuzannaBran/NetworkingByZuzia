@@ -8,7 +8,13 @@ import * as networkGraph from './services/networkGraph.js';
 const mainMenu = document.getElementById('mainMenu');
 const searchMenu = document.getElementById('searchMenu');
 const listMenu = document.getElementById('listMenu');
-const deleteMenu = document.getElementById('deleteMenu');
+const contactCreatorSection = document.getElementById('contactCreator');
+const contactCreatorForm = document.getElementById('contactCreatorForm');
+const globalBack = document.getElementById('globalBack');
+const feedbackEndpoint = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_FEEDBACK_ENDPOINT)
+    ? import.meta.env.VITE_FEEDBACK_ENDPOINT.trim()
+    : '';
+const feedbackMailSubject = 'NetGen feedback';
 const addContactForm = document.getElementById('addContactForm');
 const contentArea = document.getElementById('contentArea');
 const contentDisplay = document.getElementById('contentDisplay');
@@ -25,6 +31,7 @@ const logoutBtn = document.getElementById('logoutBtn');
 const userStatus = document.getElementById('userStatus');
 const networkGraphView = document.getElementById('networkGraphView');
 const networkGraphContainer = document.getElementById('networkGraphContainer');
+const graphContactProfile = document.getElementById('graphContactProfile');
 const graphZoomIn = document.getElementById('graphZoomIn');
 const graphZoomOut = document.getElementById('graphZoomOut');
 const graphReset = document.getElementById('graphReset');
@@ -39,6 +46,7 @@ const searchRowsContainer = document.getElementById('searchRowsContainer');
 const addSearchRowBtn = document.getElementById('addSearchRow');
 const searchFormError = document.getElementById('searchFormError');
 const searchResultsContainer = document.getElementById('searchResults');
+const pwaGuideSection = document.getElementById('pwaGuide');
 const searchSuggestionCache = {
     ids: [],
     names: [],
@@ -47,6 +55,12 @@ const searchSuggestionCache = {
 };
 let searchSuggestionsLoaded = false;
 let searchSuggestionsPromise = null;
+const graphProfilePlaceholderMarkup = `
+    <div class="graph-profile-placeholder">
+        <h3>Select a contact</h3>
+        <p>Click any person in the graph to display the full profile here.</p>
+    </div>
+`;
 
 // State
 let currentView = 'main';
@@ -55,6 +69,13 @@ let helperModeActive = false;
 const urlParams = new URLSearchParams(window.location.search);
 let pendingIntroducerPrefill = '';
 const contactCache = new Map();
+const listViewState = {
+    mode: 'brief',
+    contacts: [],
+    expandedKeys: new Set(),
+    loaded: false,
+    active: false
+};
 
 if (urlParams.has('introducerContact')) {
     pendingIntroducerPrefill = (urlParams.get('introducerContact') || '').trim();
@@ -63,6 +84,14 @@ if (urlParams.has('introducerContact')) {
     const remainingQuery = urlParams.toString();
     const cleanUrl = remainingQuery ? `${window.location.pathname}?${remainingQuery}` : window.location.pathname;
     window.history.replaceState({}, document.title, cleanUrl);
+}
+
+function resetListViewState() {
+    listViewState.mode = 'brief';
+    listViewState.contacts = [];
+    listViewState.expandedKeys.clear();
+    listViewState.loaded = false;
+    listViewState.active = false;
 }
 
 // Show/Hide Functions
@@ -75,8 +104,11 @@ function hideLoading() {
 }
 
 function showView(view) {
+    if (view !== 'content') {
+        listViewState.active = false;
+    }
     // Hide all views
-    [landingPage, mainMenu, searchMenu, listMenu, deleteMenu, addContactForm, contentArea, networkGraphView, statisticsView].forEach(el => {
+    [landingPage, mainMenu, searchMenu, listMenu, contactCreatorSection, addContactForm, contentArea, networkGraphView, statisticsView].forEach(el => {
         el.classList.add('hidden');
     });
 
@@ -94,8 +126,8 @@ function showView(view) {
         case 'list':
             listMenu.classList.remove('hidden');
             break;
-        case 'delete':
-            deleteMenu.classList.remove('hidden');
+        case 'contact-creator':
+            contactCreatorSection.classList.remove('hidden');
             break;
         case 'add':
             addContactForm.classList.remove('hidden');
@@ -112,6 +144,26 @@ function showView(view) {
     }
 
     currentView = view;
+    updateGlobalBackVisibility(view);
+}
+
+function updateGlobalBackVisibility(view) {
+    if (!globalBack) {
+        return;
+    }
+    const shouldShow = !['landing', 'main'].includes(view);
+    globalBack.classList.toggle('hidden', !shouldShow);
+}
+
+function scrollPageToTop() {
+    if (typeof window === 'undefined' || typeof window.scrollTo !== 'function') {
+        return;
+    }
+    try {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (error) {
+        window.scrollTo(0, 0);
+    }
 }
 
 function showLanding() {
@@ -128,6 +180,7 @@ function showAuth() {
     document.getElementById('signupHeaderBtn').classList.add('hidden');
     showView('main');
     mainMenu.classList.add('hidden');
+    scrollPageToTop();
 }
 
 function showApp(userEmail) {
@@ -247,6 +300,35 @@ function cacheContacts(contacts = []) {
             contactCache.set(contact.docId, contact);
         }
     });
+}
+
+function resetGraphProfilePanel() {
+    if (!graphContactProfile) {
+        return;
+    }
+    graphContactProfile.innerHTML = graphProfilePlaceholderMarkup;
+    graphContactProfile.classList.add('graph-profile-empty');
+}
+
+function displayGraphContactProfile(contact) {
+    if (!graphContactProfile) {
+        return;
+    }
+
+    if (!contact) {
+        resetGraphProfilePanel();
+        return;
+    }
+
+    graphContactProfile.innerHTML = `
+        <div class="graph-profile-header">
+            <h3>Selected contact</h3>
+            <p>Tap another person in the graph to switch profiles.</p>
+        </div>
+        ${renderContact(contact)}
+    `;
+    graphContactProfile.classList.remove('graph-profile-empty');
+    graphContactProfile.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 // Search Form Helpers
@@ -407,8 +489,8 @@ function getSuggestionsForType(type) {
         case 'id':
             return searchSuggestionCache.ids;
         case 'name':
-            return searchSuggestionCache.names;
-        case 'hashtag':
+        case 'contact-creator':
+            showView('contact-creator');
             return searchSuggestionCache.hashtags;
         case 'event':
             return searchSuggestionCache.events;
@@ -697,6 +779,9 @@ async function finalizeContactCreation(contactData) {
         hideLoading();
         resetContactForm();
         showSuccess('Contact added successfully!');
+        listViewState.loaded = false;
+        listViewState.contacts = [];
+        listViewState.expandedKeys.clear();
     } catch (error) {
         hideLoading();
         if (formErrorMessage) {
@@ -766,11 +851,13 @@ function showDuplicatePrompt(contactData, duplicatesCount) {
 
 // Display Functions
 function showError(message) {
+    listViewState.active = false;
     contentDisplay.innerHTML = `<div class="error">${message}</div>`;
     showView('content');
 }
 
 function showSuccess(message) {
+    listViewState.active = false;
     let html = `<div class="success">${message}</div>`;
     if (helperModeActive) {
         html += `
@@ -793,46 +880,74 @@ function showSuccess(message) {
     }
 }
 
+function buildContactDetailSections(contact, options = {}) {
+    const {
+        includeId = true,
+        includeCreatedAt = true,
+        includeAdvantage = true,
+        includeSource = true,
+        includeContactMethods = true,
+        includeHashtags = true
+    } = options;
+
+    const details = [];
+
+    if (includeId && typeof contact.id !== 'undefined') {
+        details.push(`<div class="contact-field"><strong>ID:</strong> ${contact.id}</div>`);
+    }
+
+    if (includeCreatedAt && contact.created_at) {
+        details.push(`<div class="contact-field"><strong>Connected:</strong> ${new Date(contact.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>`);
+    }
+
+    if (contact.note) {
+        details.push(`<div class="contact-field"><strong>Note:</strong> ${contact.note}</div>`);
+    }
+
+    if (includeAdvantage && contact.advantage) {
+        details.push(`<div class="contact-field"><strong>Advantage:</strong> ${contact.advantage}</div>`);
+    }
+
+    if (includeSource && contact.source_type) {
+        const sourceDetails = contact.source_value ? ` - ${contact.source_value}` : '';
+        details.push(`<div class="contact-field"><strong>Source:</strong> ${contact.source_type}${sourceDetails}</div>`);
+    }
+
+    if (includeContactMethods && contact.contact_methods && contact.contact_methods.length > 0) {
+        details.push(`
+            <div class="contact-field">
+                <strong>Contact Info:</strong>
+                <div class="contact-methods-list">
+                    ${contact.contact_methods.map(method => `<div class="contact-method-item"><span class="method-type">${method.type}:</span> <span class="method-value">${method.value}</span></div>`).join('')}
+                </div>
+            </div>
+        `);
+    }
+
+    if (includeHashtags && contact.hashtags && contact.hashtags.length > 0) {
+        details.push(`
+            <div class="contact-field">
+                <strong>Hashtags:</strong>
+                ${contact.hashtags.map(tag => `<span class="hashtag">#${tag}</span>`).join('')}
+            </div>
+        `);
+    }
+
+    return details;
+}
+
 function renderContact(contact, brief = false) {
     const docIdAttr = contact.docId ? ` data-doc-id="${contact.docId}"` : '';
     const contactIdAttr = typeof contact.id !== 'undefined' ? ` data-contact-id="${contact.id}"` : '';
     const fullName = `${contact.name || ''} ${contact.surname || ''}`.trim() || 'Unnamed contact';
-
-    const details = [];
-    if (typeof contact.id !== 'undefined') {
-        details.push(`<div class="contact-field"><strong>ID:</strong> ${contact.id}</div>`);
-    }
-    if (!brief && contact.created_at) {
-        details.push(`<div class="contact-field"><strong>Connected:</strong> ${new Date(contact.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>`);
-    }
-    if (contact.note) {
-        details.push(`<div class="contact-field"><strong>Note:</strong> ${contact.note}</div>`);
-    }
-    if (!brief && contact.advantage) {
-        details.push(`<div class="contact-field"><strong>Advantage:</strong> ${contact.advantage}</div>`);
-    }
-    if (!brief && contact.source_type) {
-        const sourceDetails = contact.source_value ? ` - ${contact.source_value}` : '';
-        details.push(`<div class="contact-field"><strong>Source:</strong> ${contact.source_type}${sourceDetails}</div>`);
-    }
-    if (!brief && contact.contact_methods && contact.contact_methods.length > 0) {
-        details.push(`
-                <div class="contact-field">
-                    <strong>Contact Info:</strong>
-                    <div class="contact-methods-list">
-                        ${contact.contact_methods.map(method => `<div class="contact-method-item"><span class="method-type">${method.type}:</span> <span class="method-value">${method.value}</span></div>`).join('')}
-                    </div>
-                </div>
-            `);
-    }
-    if (!brief && contact.hashtags && contact.hashtags.length > 0) {
-        details.push(`
-                <div class="contact-field">
-                    <strong>Hashtags:</strong>
-                    ${contact.hashtags.map(tag => `<span class="hashtag">#${tag}</span>`).join('')}
-                </div>
-            `);
-    }
+    const detailOptions = brief ? {
+        includeCreatedAt: false,
+        includeAdvantage: false,
+        includeSource: false,
+        includeContactMethods: false,
+        includeHashtags: false
+    } : {};
+    const details = buildContactDetailSections(contact, detailOptions);
 
     const hasActions = Boolean(contact.docId);
     const actionsMarkup = hasActions ? `
@@ -1029,6 +1144,11 @@ function refreshContactCard(contact) {
     if (!card) {
         return;
     }
+    if (card.classList.contains('list-view-card')) {
+        updateContactInListState(contact);
+        renderListView();
+        return;
+    }
     card.outerHTML = renderContact(contact);
 }
 
@@ -1072,6 +1192,7 @@ function setInlineEditError(form, message) {
 }
 
 function displayContacts(contacts, brief = false) {
+    listViewState.active = false;
     cacheContacts(contacts);
     if (contacts.length === 0) {
         contentDisplay.innerHTML = '<p>No contacts found.</p>';
@@ -1079,6 +1200,147 @@ function displayContacts(contacts, brief = false) {
         contentDisplay.innerHTML = contacts.map(c => renderContact(c, brief)).join('');
     }
     showView('content');
+}
+
+function getContactUniqueKey(contact) {
+    if (contact.docId) {
+        return contact.docId;
+    }
+    if (typeof contact.id !== 'undefined') {
+        return `id-${contact.id}`;
+    }
+    return `${(contact.name || 'unknown').toLowerCase()}-${(contact.surname || 'unknown').toLowerCase()}`;
+}
+
+function renderListContactCard(contact) {
+    const docIdAttr = contact.docId ? ` data-doc-id="${contact.docId}"` : '';
+    const contactIdAttr = typeof contact.id !== 'undefined' ? ` data-contact-id="${contact.id}"` : '';
+    const fullName = `${contact.name || ''} ${contact.surname || ''}`.trim() || 'Unnamed contact';
+    const contactKey = getContactUniqueKey(contact);
+    const isExpanded = listViewState.mode === 'full' || listViewState.expandedKeys.has(contactKey);
+    const details = buildContactDetailSections(contact, { includeId: false });
+    const detailMarkup = details.length > 0 ? details.join('') : '<div class="contact-field"><em>No additional details yet.</em></div>';
+    const hasActions = Boolean(contact.docId);
+    const actionsMarkup = hasActions ? `
+                <div class="contact-card-actions">
+                        <button type="button" class="btn-outline btn-edit-contact" data-action="edit-contact" data-doc-id="${contact.docId}">Edit</button>
+                        <button type="button" class="btn-danger btn-delete-contact" data-action="delete-contact" data-doc-id="${contact.docId}">Delete</button>
+                </div>
+        ` : '';
+    const editContainer = hasActions ? '<div class="contact-edit-container hidden"></div>' : '';
+    const expandToggle = listViewState.mode === 'brief' ? `
+            <button type="button" class="btn-link contact-expand-toggle" data-action="toggle-contact-details" data-contact-key="${contactKey}">
+                ${isExpanded ? 'Collapse details' : 'Expand details'}
+            </button>
+        ` : '';
+
+    return `
+        <div class="contact-card list-view-card"${docIdAttr}${contactIdAttr} data-contact-key="${contactKey}">
+            <div class="contact-summary">
+                ${typeof contact.id !== 'undefined' ? `<span class="contact-summary-id">ID: ${contact.id}</span>` : ''}
+                <span class="contact-summary-name">${fullName}</span>
+            </div>
+            ${expandToggle}
+            <div class="contact-details ${isExpanded ? '' : 'hidden'}">
+                ${detailMarkup}
+                ${actionsMarkup}
+                ${editContainer}
+            </div>
+        </div>
+    `;
+}
+
+function renderListView() {
+    if (!contentDisplay) {
+        return;
+    }
+    const toggleTarget = listViewState.mode === 'brief' ? 'full' : 'brief';
+    const toggleLabel = listViewState.mode === 'brief'
+        ? 'Switch to full list (all details)'
+        : 'Switch to brief list';
+
+    const cardsMarkup = listViewState.contacts.length > 0
+        ? listViewState.contacts.map(contact => renderListContactCard(contact)).join('')
+        : '<p class="list-view-empty">No contacts yet. Add your first one to get started.</p>';
+
+    contentDisplay.innerHTML = `
+        <div class="list-view-toolbar">
+            <button class="btn-outline list-view-toggle" data-action="toggle-list-view" data-target-mode="${toggleTarget}">
+                ${toggleLabel}
+            </button>
+        </div>
+        <div class="list-view-results">
+            ${cardsMarkup}
+        </div>
+    `;
+
+    showView('content');
+    listViewState.active = true;
+}
+
+async function showListView(mode = 'brief', options = {}) {
+    const { forceReload = false, resetExpanded = false } = options;
+    const normalizedMode = mode === 'full' ? 'full' : 'brief';
+    const needsReload = forceReload || !listViewState.loaded;
+
+    if (needsReload) {
+        try {
+            showLoading();
+            const contacts = await contactService.listAllContacts();
+            hideLoading();
+            listViewState.contacts = contacts;
+            listViewState.loaded = true;
+            cacheContacts(contacts);
+            listViewState.expandedKeys.clear();
+        } catch (error) {
+            hideLoading();
+            showError(error.message || 'Unable to load contacts right now.');
+            return;
+        }
+    } else if (resetExpanded || normalizedMode === 'full') {
+        listViewState.expandedKeys.clear();
+    }
+
+    listViewState.mode = normalizedMode;
+
+    if (normalizedMode === 'full') {
+        listViewState.expandedKeys.clear();
+    }
+
+    renderListView();
+}
+
+function toggleListContactDetails(contactKey) {
+    if (!contactKey || !listViewState.active || listViewState.mode !== 'brief') {
+        return;
+    }
+    if (listViewState.expandedKeys.has(contactKey)) {
+        listViewState.expandedKeys.delete(contactKey);
+    } else {
+        listViewState.expandedKeys.add(contactKey);
+    }
+    renderListView();
+}
+
+function updateContactInListState(updatedContact) {
+    if (!updatedContact || !updatedContact.docId) {
+        return;
+    }
+    const index = listViewState.contacts.findIndex(contact => contact.docId === updatedContact.docId);
+    if (index !== -1) {
+        listViewState.contacts[index] = { ...listViewState.contacts[index], ...updatedContact };
+    }
+}
+
+function removeContactFromListState(docId) {
+    if (!docId || listViewState.contacts.length === 0) {
+        return;
+    }
+    const initialLength = listViewState.contacts.length;
+    listViewState.contacts = listViewState.contacts.filter(contact => contact.docId !== docId);
+    if (initialLength !== listViewState.contacts.length) {
+        listViewState.expandedKeys.delete(docId);
+    }
 }
 
 // Modal Functions
@@ -1112,9 +1374,14 @@ async function handleNetworkGraph() {
         hideLoading();
 
         showView('network-graph');
+        cacheContacts(contacts);
+        resetGraphProfilePanel();
 
         // Initialize graph with contacts data
-        networkGraph.initializeGraph(networkGraphContainer, contacts);
+        networkGraph.initializeGraph(networkGraphContainer, contacts, {
+            onNodeSelect: (contact) => displayGraphContactProfile(contact),
+            onBackgroundClick: () => resetGraphProfilePanel()
+        });
     } catch (error) {
         hideLoading();
         showError(error.message);
@@ -1285,27 +1552,11 @@ function displayStatistics(stats) {
 }
 
 async function handleListFull() {
-    try {
-        showLoading();
-        const contacts = await contactService.listAllContacts();
-        hideLoading();
-        displayContacts(contacts, false);
-    } catch (error) {
-        hideLoading();
-        showError(error.message);
-    }
+    await showListView('full', { forceReload: true });
 }
 
 async function handleListBrief() {
-    try {
-        showLoading();
-        const contacts = await contactService.listAllContacts();
-        hideLoading();
-        displayContacts(contacts, true);
-    } catch (error) {
-        hideLoading();
-        showError(error.message);
-    }
+    await showListView('brief', { forceReload: true, resetExpanded: true });
 }
 
 async function handleDeleteById() {
@@ -1407,10 +1658,15 @@ async function handleInlineDelete(docId) {
         contactCache.delete(docId);
         const card = getContactCardByDocId(docId);
         if (card) {
+            const isListViewCard = card.classList.contains('list-view-card');
             const isInSearchResults = searchResultsContainer && searchResultsContainer.contains(card);
             card.remove();
             if (isInSearchResults) {
                 refreshSearchResultsSummary();
+            }
+            if (isListViewCard) {
+                removeContactFromListState(docId);
+                renderListView();
             }
         }
         alert('Contact deleted successfully.');
@@ -1993,14 +2249,86 @@ document.getElementById('contactForm').addEventListener('submit', async (e) => {
     await handleContactSubmission(contactData);
 });
 
+const buildCreatorMailtoLink = (body) => `mailto:baran_zuzanna@outlook.com?subject=${encodeURIComponent(feedbackMailSubject)}&body=${encodeURIComponent(body)}`;
+
+const sendFeedbackViaCloud = async (message) => {
+    if (!feedbackEndpoint) {
+        return false;
+    }
+
+    const response = await fetch(feedbackEndpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ message })
+    });
+
+    if (!response.ok) {
+        throw new Error(`Feedback endpoint returned ${response.status}`);
+    }
+
+    return true;
+};
+
+if (contactCreatorForm) {
+    const submitBtn = contactCreatorForm.querySelector('button[type="submit"]');
+    const submitDefaultText = submitBtn?.textContent || 'Send suggestion';
+
+    contactCreatorForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const message = (document.getElementById('creatorMessage')?.value || '').trim();
+
+        if (!message) {
+            alert('Please describe your suggestion or issue before sending.');
+            return;
+        }
+
+        const openMailClient = () => {
+            window.location.href = buildCreatorMailtoLink(message);
+        };
+
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Sending...';
+        }
+
+        try {
+            const sentViaCloud = await sendFeedbackViaCloud(message);
+            if (!sentViaCloud) {
+                openMailClient();
+                return;
+            }
+
+            alert('Message sent! Thank you for your feedback.');
+            contactCreatorForm.reset();
+        } catch (error) {
+            console.error('Feedback send error:', error);
+            alert('Automatic send failed. Opening your email app so you can send the message manually.');
+            openMailClient();
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = submitDefaultText;
+            }
+        }
+    });
+}
+
 // Event Delegation for Menu Buttons
 document.addEventListener('click', async (e) => {
-    const action = e.target.dataset.action;
+    const actionTarget = e.target.closest('[data-action]');
+    const action = actionTarget?.dataset.action;
     if (!action) return;
 
     switch (action) {
         case 'open-auth':
             showAuth();
+            break;
+        case 'scroll-guide':
+            if (pwaGuideSection) {
+                pwaGuideSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
             break;
         case 'landing':
             showLanding();
@@ -2010,10 +2338,10 @@ document.addEventListener('click', async (e) => {
             showView('search');
             break;
         case 'list':
-            showView('list');
+            await showListView('brief', { forceReload: true, resetExpanded: true });
             break;
-        case 'delete':
-            showView('delete');
+        case 'contact-creator':
+            showView('contact-creator');
             break;
         case 'add':
             showView('add');
@@ -2039,6 +2367,17 @@ document.addEventListener('click', async (e) => {
         case 'list-brief':
             handleListBrief();
             break;
+        case 'toggle-list-view': {
+            const targetMode = e.target.dataset.targetMode === 'full' ? 'full' : 'brief';
+            const resetExpanded = targetMode === 'brief';
+            await showListView(targetMode, { resetExpanded });
+            break;
+        }
+        case 'toggle-contact-details': {
+            const contactKey = e.target.dataset.contactKey;
+            toggleListContactDetails(contactKey);
+            break;
+        }
 
         // Delete actions
         case 'delete-id':
@@ -2204,6 +2543,7 @@ onAuthStateChanged(auth, (user) => {
         userStatus.textContent = '';
         userStatus.classList.add('hidden');
         logoutBtn.classList.add('hidden');
+        resetListViewState();
         showLanding();
     }
 });

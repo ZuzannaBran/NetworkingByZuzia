@@ -16,14 +16,11 @@
     <header class="header">
         <div class="header-container">
             <div class="brand">
-                <span class="brand-mark">N</span>
+                <span class="brand-mark">
+                    <img src="/logo.jpg" alt="NetGen logo" class="brand-mark-img">
+                </span>
                 <span class="brand-name">NetGen</span>
             </div>
-            <nav class="nav-links" aria-label="Primary">
-                <a href="#" class="nav-link">Product</a>
-                <a href="#" class="nav-link">Pricing</a>
-                <a href="#" class="nav-link">Contact</a>
-            </nav>
             <div class="header-actions">
                 <span id="userStatus" class="user-status hidden"></span>
                 <button id="loginHeaderBtn" class="btn-outline" data-action="open-auth">Sign in</button>
@@ -33,6 +30,12 @@
             </div>
         </div>
     </header>
+
+    <div id="globalBack" class="global-back hidden">
+        <div class="global-back-inner">
+            <button class="back-chip" data-action="back">← Back</button>
+        </div>
+    </div>
 
     <div id="app">
 
@@ -46,8 +49,12 @@
                 <p class="hero-description-centered">Connect, organize, and grow your network in one place.</p>
                 <div class="hero-actions-centered">
                     <button class="btn-dark" data-action="open-auth">Sign up</button>
-                    <button class="btn-transparent" data-action="open-auth">Learn more</button>
+                    <button class="btn-transparent" type="button" data-action="scroll-guide">Learn more</button>
                 </div>
+            </div>
+
+            <div class="section-header">
+                <h2></h2>
             </div>
 
             <div class="section-header">
@@ -55,96 +62,101 @@
             </div>
 
             <div class="landing-features">
-                <div class="feature-item">
-                    <div class="feature-visual">
-                        <img src="/baranek_z_lupa.jpg" alt="Wyszukiwanie" class="feature-icon-img">
-                    </div>
-                    <div class="feature-content">
-                        <h3>Advanced Search</h3>
-                        <p>Tag, search and organize contacts using intelligent filters. Find anyone by name, event or
-                            hashtag in seconds.</p>
-                    </div>
-                </div>
+                <div class="feature-grid">
+                    <article class="feature-card">
+                        <div class="feature-card-media">
+                            <img src="/baranek_z_lupa.jpg" alt="Wyszukiwanie" class="feature-card-img">
+                        </div>
+                        <div class="feature-card-body">
+                            <span class="feature-pill">01 • Discover</span>
+                            <h3>Advanced Search</h3>
+                            <p>Tag, search and organize contacts using intelligent filters. Find anyone by name, event
+                                or hashtag in seconds.</p>
 
-                <div class="feature-item">
-                    <div class="feature-visual">
-                        <img src="/baranek_na_evencie.jpg" alt="Wydarzenia" class="feature-icon-img">
-                    </div>
-                    <div class="feature-content">
-                        <h3>Events and Sources</h3>
-                        <p>Track where you met each person and keep context always at hand. Remember the details that
-                            matter.</p>
-                    </div>
-                </div>
+                        </div>
+                    </article>
 
-                <div class="feature-item">
-                    <div class="feature-visual">
-                        <img src="/baranek_chmura.jpg" alt="Synchronizacja" class="feature-icon-img">
-                    </div>
-                    <div class="feature-content">
-                        <h3>Always Synchronized</h3>
-                        <p>Access your contacts from any device thanks to Firebase synchronization. Work offline and
-                            sync when you want.</p>
-                    </div>
-                </div>
+                    <article class="feature-card">
+                        <div class="feature-card-media">
+                            <img src="/baranek_na_evencie.jpg" alt="Wydarzenia" class="feature-card-img">
+                        </div>
+                        <div class="feature-card-body">
+                            <span class="feature-pill">02 • Context</span>
+                            <h3>Events and Sources</h3>
+                            <p>Track where you met each person and keep context always at hand. Remember the details
+                                that matter.</p>
+                        </div>
+                    </article>
 
-                <div class="feature-item">
-                    <div class="feature-visual">
-                        <img src="/baranek_z_notesem.jpg" alt="Notatki" class="feature-icon-img">
-                    </div>
-                    <div class="feature-content">
-                        <h3>Notes and Advantages</h3>
-                        <p>Record key information about each contact — from common interests to potential
-                            collaborations.</p>
-                    </div>
-                </div>
+                    <article class="feature-card">
+                        <div class="feature-card-media">
+                            <img src="/baranek_chmura.jpg" alt="Synchronizacja" class="feature-card-img">
+                        </div>
+                        <div class="feature-card-body">
+                            <span class="feature-pill">03 • Sync</span>
+                            <h3>Always Synchronized</h3>
+                            <p>Access your contacts from any device thanks to Firebase synchronization. Work offline
+                                and sync when you want.</p>
 
-                <div class="feature-item">
-                    <div class="feature-visual">
-                        <img src="/baranek_i_aplikacja.jpg" alt="PWA" class="feature-icon-img">
-                    </div>
-                    <div class="feature-content">
-                        <h3>PWA Application</h3>
-                        <p>Install as a native app on your phone or computer. Fast, responsive and always at hand.</p>
-                    </div>
-                </div>
-            </div>
+                        </div>
+                    </article>
 
-            <!-- Network Graph Visualization -->
-            <div class="network-graph-container">
-                <div class="planet-system" id="networkGraph">
-                    <!-- Center - User -->
-                    <div class="center-avatar" title="You">
-                        <span>👤</span>
-                    </div>
+                    <article class="feature-card">
+                        <div class="feature-card-media">
+                            <img src="/baranek_z_notesem.jpg" alt="Notatki" class="feature-card-img">
+                        </div>
+                        <div class="feature-card-body">
+                            <span class="feature-pill">04 • Capture</span>
+                            <h3>Notes and Advantages</h3>
+                            <p>Record key information about each contact — from common interests to potential
+                                collaborations.</p>
 
-                    <!-- Orbit rings -->
-                    <div class="orbit orbit-1"></div>
-                    <div class="orbit orbit-2"></div>
-                    <div class="orbit orbit-3"></div>
-                    <div class="orbit orbit-4"></div>
+                        </div>
+                    </article>
 
-                    <!-- Sample contacts on orbits -->
-                    <div class="orbit orbit-1">
-                        <div class="contact-avatar contact-avatar-1" title="Jan Kowalski">JK</div>
-                    </div>
-                    <div class="orbit orbit-2">
-                        <div class="contact-avatar contact-avatar-2 contact-avatar-alt" title="Anna Nowak">AN</div>
-                    </div>
-                    <div class="orbit orbit-3">
-                        <div class="contact-avatar contact-avatar-3" title="Piotr Wiśniewski">PW</div>
-                    </div>
-                    <div class="orbit orbit-4">
-                        <div class="contact-avatar contact-avatar-4 contact-avatar-alt" title="Maria Dąbrowska">MD</div>
-                    </div>
+                    <article class="feature-card">
+                        <div class="feature-card-media">
+                            <img src="/baranek_i_aplikacja.jpg" alt="PWA" class="feature-card-img">
+                        </div>
+                        <div class="feature-card-body">
+                            <span class="feature-pill">05 • Everywhere</span>
+                            <h3>PWA Application</h3>
+                            <p>Install as a native app on your phone or computer. Fast, responsive and always at
+                                hand.</p>
+
+                        </div>
+                    </article>
                 </div>
             </div>
 
-            <div class="cta-section">
-                <h2>Try NetGen today</h2>
-                <p>Join the waitlist and get early access.</p>
-                <button class="btn-primary-large" data-action="open-auth">Join the waitlist</button>
-            </div>
+            <section class="pwa-guide" id="pwaGuide">
+                <div class="pwa-guide-header">
+                    <h3>Install NetGen like a native app</h3>
+                    <p>Follow the quick guide below to pin NetGen to your phone's home screen and open it just like a
+                        regular app.</p>
+                </div>
+                <div class="pwa-guide-steps">
+                    <article class="guide-step">
+                        <img src="/getstarted1.png" alt="Open the browser menu and tap Add to Home Screen"
+                            loading="lazy">
+                        <div>
+                            <h4>Step 1. Open the menu</h4>
+                            <p>On your mobile browser tap the options icon (⋮ or Share) and choose <strong>Add to Home
+                                    Screen</strong>. Confirm when prompted.</p>
+                        </div>
+                    </article>
+                    <article class="guide-step">
+                        <img src="/getstarted2.png" alt="Confirm installation so NetGen appears on your home screen"
+                            loading="lazy">
+                        <div>
+                            <h4>Step 2. Launch from your home screen</h4>
+                            <p>After confirming, NetGen appears on your home screen. Tap the icon anytime to enjoy the
+                                app in a full-screen, native-like view.</p>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
         </section>
 
         <!-- Auth Page -->
@@ -173,14 +185,70 @@
 
         <!-- Main Menu -->
         <div id="mainMenu" class="menu-container hidden">
-            <h2>Main Panel</h2>
-            <div class="menu-buttons grid">
-                <button class="menu-btn" data-action="network-graph">🌐 Network Graph</button>
-                <button class="menu-btn" data-action="statistics">📊 Statistics</button>
-                <button class="menu-btn" data-action="search">🔍 Search Contact</button>
-                <button class="menu-btn" data-action="list">📋 List Contacts</button>
-                <button class="menu-btn" data-action="delete">🗑️ Delete Contact</button>
-                <button class="menu-btn" data-action="add">➕ Add New Contact</button>
+            <div class="main-menu-hero">
+                <div class="main-menu-copy">
+                    <h2>Main Panel</h2>
+                    <p class="menu-lede">Choose what you want to explore next — visualize connections, search your data
+                        or capture new people right after you meet them.</p>
+                </div>
+            </div>
+
+            <div class="menu-grid">
+                <button class="menu-card" data-action="add">
+                    <span class="menu-card-icon">
+                        <img src="/butons/add%20new%20contact.png" alt="Add contact icon">
+                    </span>
+                    <div class="menu-card-body">
+                        <h3>Add New Contact</h3>
+                        <p>Capture context, notes and hashtags while the conversation is still fresh.</p>
+                    </div>
+                </button>
+
+                <button class="menu-card" data-action="network-graph">
+                    <span class="menu-card-icon">
+                        <img src="/butons/network_graph.png" alt="Network graph icon">
+                    </span>
+                    <div class="menu-card-body">
+                        <h3>Network Graph</h3>
+                        <p>Visualize relationships, spot clusters and discover new warm introductions.</p>
+                    </div>
+                </button>
+                <button class="menu-card" data-action="statistics">
+                    <span class="menu-card-icon">
+                        <img src="/butons/statistic.png" alt="Statistics icon">
+                    </span>
+                    <div class="menu-card-body">
+                        <h3>Statistics</h3>
+                        <p>Track growth, most active events and how your network evolves over time.</p>
+                    </div>
+                </button>
+                <button class="menu-card" data-action="search">
+                    <span class="menu-card-icon">
+                        <img src="/butons/search.png" alt="Search icon">
+                    </span>
+                    <div class="menu-card-body">
+                        <h3>Search Contact</h3>
+                        <p>Find any person in seconds using names, events, hashtags or smart filters.</p>
+                    </div>
+                </button>
+                <button class="menu-card" data-action="list">
+                    <span class="menu-card-icon">
+                        <img src="/butons/list.png" alt="List icon">
+                    </span>
+                    <div class="menu-card-body">
+                        <h3>List Contacts</h3>
+                        <p>Browse the full directory or a concise list to get a quick overview of everyone.</p>
+                    </div>
+                </button>
+                <button class="menu-card" data-action="contact-creator">
+                    <span class="menu-card-icon">
+                        <img src="/butons/contact_creator.png" alt="Contact creator icon">
+                    </span>
+                    <div class="menu-card-body">
+                        <h3>Contact The Creator</h3>
+                        <p>Send feedback, ideas or bug reports directly to Zuzia without leaving the app.</p>
+                    </div>
+                </button>
             </div>
         </div>
 
@@ -194,6 +262,12 @@
                 <button type="button" class="btn-control" id="graphReset">🔄 Reset View</button>
             </div>
             <div id="networkGraphContainer" class="network-graph-canvas"></div>
+            <div id="graphContactProfile" class="graph-contact-profile graph-profile-empty" aria-live="polite">
+                <div class="graph-profile-placeholder">
+                    <h3>Select a contact</h3>
+                    <p>Click any person in the graph to display the full profile here.</p>
+                </div>
+            </div>
             <button class="btn-outline" data-action="back">← Back to Menu</button>
         </div>
 
@@ -248,14 +322,24 @@
             </div>
         </div>
 
-        <!-- Delete Submenu -->
-        <div id="deleteMenu" class="submenu-container hidden">
-            <h2>Delete Contact</h2>
-            <div class="menu-buttons">
-                <button class="menu-btn" data-action="delete-id">Delete by ID</button>
-                <button class="menu-btn" data-action="delete-name">Delete by Name & Surname</button>
-                <button class="menu-btn back-btn" data-action="back">← Back</button>
-            </div>
+        <!-- Contact Creator Form -->
+        <div id="contactCreator" class="form-container hidden">
+            <h2>Contact The Creator</h2>
+            <p class="section-description">Send a suggestion, improvement idea, or report a bug directly to Zuzia.</p>
+            <form id="contactCreatorForm">
+                <div class="form-group">
+                    <label for="creatorMessage">Message *</label>
+                    <textarea id="creatorMessage" rows="5"
+                        placeholder="Describe your idea or issue and leave contact info if you want a reply"
+                        required></textarea>
+                    <small class="section-description">Add your preferred contact method inside the message.</small>
+                </div>
+                <div class="form-buttons">
+                    <button type="submit" class="submit-btn">Send suggestion</button>
+                    <button type="button" class="cancel-btn" data-action="back">Cancel</button>
+                </div>
+                <p class="section-description">Messages are forwarded to baran_zuzanna@outlook.com.</p>
+            </form>
         </div>
 
         <!-- Content Area -->
@@ -373,6 +457,17 @@
             </div>
         </div>
     </div>
+
+
+    <div class="site-footer">
+        <img src="/chmura.png" alt="Cloud overlay" loading="lazy" class="footer-overlay">
+        <footer class="footer-bar">
+            <p>© 2026 NetGen</p>
+            <p>Contact: <a href="mailto:baran_zuzanna@outlook.com">baran_zuzanna@outlook.com</a></p>
+            <p>All rights reserved</p>
+        </footer>
+    </div>
+
     <script type="module" src="/src/main.js"></script>
 </body>
 

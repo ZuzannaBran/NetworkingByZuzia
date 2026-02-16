@@ -30,6 +30,53 @@ function requireUserId() {
     return user.uid;
 }
 
+function normalizeValue(value) {
+    return (value || '')
+        .toString()
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+}
+
+function formatFullName(contact) {
+    if (!contact) {
+        return '';
+    }
+    return `${contact.name || ''} ${contact.surname || ''}`.trim();
+}
+
+function resolveFallbackSource(contact, nameMap, visited = new Set()) {
+    if (!contact) {
+        return { source_type: '', source_value: '' };
+    }
+
+    if (contact.source_type === 'event' && contact.source_value) {
+        return { source_type: 'event', source_value: contact.source_value };
+    }
+
+    if (contact.source_type === 'contact' && contact.source_value) {
+        const parentKey = normalizeValue(contact.source_value);
+        const parentContact = nameMap.get(parentKey);
+
+        if (parentContact && parentContact.docId && !visited.has(parentContact.docId)) {
+            visited.add(parentContact.docId);
+            const inherited = resolveFallbackSource(parentContact, nameMap, visited);
+            if (inherited.source_type) {
+                return inherited;
+            }
+
+            const parentName = formatFullName(parentContact);
+            if (parentName) {
+                return { source_type: 'contact', source_value: parentName };
+            }
+        }
+
+        return { source_type: 'contact', source_value: contact.source_value };
+    }
+
+    return { source_type: '', source_value: '' };
+}
+
 /**
  * Get all contacts from Firestore
  * @returns {Promise<Array>} Array of contact objects
@@ -92,29 +139,45 @@ export async function deleteContact(docId) {
 }
 
 async function reassignIntroductions(deletedContact, userId) {
-    const introducerName = `${deletedContact.name || ''} ${deletedContact.surname || ''}`.trim();
-    if (!introducerName) {
+    const deletedFullName = formatFullName(deletedContact);
+    const normalizedDeletedName = normalizeValue(deletedFullName);
+    if (!normalizedDeletedName) {
         return;
     }
 
     const contactsCol = collection(db, CONTACTS_COLLECTION);
-    const dependentsQuery = query(
-        contactsCol,
-        where('ownerId', '==', userId),
-        where('source_type', '==', 'contact'),
-        where('source_value', '==', introducerName)
-    );
-    const snapshot = await getDocs(dependentsQuery);
+    const ownerQuery = query(contactsCol, where('ownerId', '==', userId));
+    const snapshot = await getDocs(ownerQuery);
     if (snapshot.empty) {
         return;
     }
 
+    const contacts = snapshot.docs.map(docSnap => ({
+        docId: docSnap.id,
+        ...docSnap.data()
+    }));
+
+    const nameMap = new Map();
+    contacts.forEach(contact => {
+        const normalizedName = normalizeValue(formatFullName(contact));
+        if (normalizedName) {
+            nameMap.set(normalizedName, contact);
+        }
+    });
+
+    const dependents = contacts.filter(contact =>
+        contact.source_type === 'contact' &&
+        normalizeValue(contact.source_value) === normalizedDeletedName
+    );
+
+    if (dependents.length === 0) {
+        return;
+    }
+
+    const fallbackUpdates = resolveFallbackSource(deletedContact, nameMap);
     const batch = writeBatch(db);
-    snapshot.forEach(docSnap => {
-        const updates = (deletedContact.source_type === 'event' && deletedContact.source_value)
-            ? { source_type: 'event', source_value: deletedContact.source_value }
-            : { source_type: '', source_value: '' };
-        batch.update(docSnap.ref, updates);
+    dependents.forEach(dependent => {
+        batch.update(doc(db, CONTACTS_COLLECTION, dependent.docId), fallbackUpdates);
     });
     await batch.commit();
 }

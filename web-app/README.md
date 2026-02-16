@@ -71,6 +71,62 @@ firebase init hosting
 firebase deploy
 ```
 
+## Automated Feedback Emails (Firebase Functions + SendGrid)
+
+The "Contact The Creator" form can now call a Firebase HTTPS Function (`functions/index.js`) that sends e‑mails through SendGrid. Follow the steps below once per environment.
+
+### 1. Prepare SendGrid
+- Create a free SendGrid account and verify a sender identity (Settings → Sender Authentication → "Verify a Single Sender").
+- In SendGrid go to Settings → API Keys → "Create API Key" with "Full Access" to Mail Send; copy it once generated.
+
+### 2. Configure the Firebase Functions workspace
+- Install dependencies for the Cloud Function:
+
+   ```bash
+   cd functions
+   npm install
+   ```
+
+- Store the SendGrid secrets in Firebase (never commit them):
+
+   ```bash
+   firebase functions:config:set sendgrid.key="YOUR_KEY" \
+      sendgrid.from="verified@yourdomain.com" \
+      sendgrid.to="baran_zuzanna@outlook.com"
+   ```
+
+   (Run inside the repo root so Firebase CLI finds `firebase.json`.)
+
+### 3. What to click in the Firebase console
+- Open [Firebase Console](https://console.firebase.google.com/), pick your project, then left menu → **Build → Functions**.
+- Click **Get started**, pick the region closest to your users, and confirm the billing warning (Cloud Functions require the Blaze plan, but the free quota usually covers light usage).
+- After you deploy (next step), return to this Functions page, click on `sendFeedback`, and copy the **Trigger URL** shown in the right panel.
+
+### 4. Deploy and wire up the frontend
+- Deploy the new function:
+
+   ```bash
+   firebase deploy --only functions:sendFeedback
+   ```
+
+- Copy `web-app/.env.example` to `.env.local` (or `.env`) and paste the trigger URL:
+
+   ```bash
+   cp web-app/.env.example web-app/.env.local
+   echo VITE_FEEDBACK_ENDPOINT="https://REGION-PROJECT.cloudfunctions.net/sendFeedback" >> web-app/.env.local
+   ```
+
+- Restart `npm run dev` (Vite reads env vars on startup). The contact form now POSTs to your Function; it automatically falls back to `mailto:` if the call fails.
+
+### Optional: test locally
+- Use the Firebase emulator suite for local tests:
+
+   ```bash
+   firebase emulators:start --only functions
+   ```
+
+- Point `VITE_FEEDBACK_ENDPOINT` to `http://localhost:5001/<project-id>/<region>/sendFeedback` while the emulator is running.
+
 ## Project Structure
 
 ```

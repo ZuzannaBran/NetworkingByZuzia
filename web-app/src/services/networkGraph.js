@@ -5,7 +5,9 @@ import { forceCollide } from 'd3-force';
 let graphInstance = null;
 let currentData = { nodes: [], links: [] };
 
-export function initializeGraph(containerElement, contacts) {
+export function initializeGraph(containerElement, contacts, options = {}) {
+    const { onNodeSelect, onBackgroundClick } = options;
+
     // Clear existing graph
     if (graphInstance) {
         graphInstance._destructor();
@@ -60,16 +62,29 @@ export function initializeGraph(containerElement, contacts) {
         .d3VelocityDecay(0.3)
         .cooldownTicks(100)
         .onNodeClick(node => {
-            console.log('Clicked node:', node);
-            // You can add custom click handler here
+            if (node?.type === 'person' && typeof onNodeSelect === 'function') {
+                onNodeSelect(node.data);
+            } else if (typeof onBackgroundClick === 'function') {
+                onBackgroundClick();
+            }
+        })
+        .onBackgroundClick(() => {
+            if (typeof onBackgroundClick === 'function') {
+                onBackgroundClick();
+            }
         })
         .onNodeHover(node => {
             containerElement.style.cursor = node ? 'pointer' : 'default';
         });
 
     // Configure d3 forces separately
-    graphInstance.d3Force('charge').strength(-200);
-    graphInstance.d3Force('collide', forceCollide(35));
+    // Pull nodes closer together by reducing repulsion + collision radius and tightening link distance.
+    graphInstance.d3Force('charge').strength(-70);
+    graphInstance.d3Force('collide', forceCollide(12));
+    const linkForce = graphInstance.d3Force('link');
+    if (linkForce) {
+        linkForce.distance(40);
+    }
 
     return graphInstance;
 }
